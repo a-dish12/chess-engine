@@ -14,9 +14,12 @@ class UserSerializer(serializers.ModelSerializer):
 class GameSerializer(serializers.ModelSerializer):
     class Meta:
         model=Game
-        fields=["id","created_at","initial_fen","player","player_color"]
+        fields=["id","created_at","initial_fen","player","player_color","current_fen"]
         extra_kwargs={
             "player":{
+                "read_only":True
+            },
+            "current_fen":{
                 "read_only":True
             }
         }
@@ -31,12 +34,12 @@ class MoveSerializer(serializers.ModelSerializer):
             }
         }
     
-    def validate(self, attrs):
-        return attrs
-    
     def create(self, validated_data):
         game=validated_data['game']
-        number_of_moves=game.moves.count()+1
-        validated_data['move_number']=number_of_moves
-        print("fen after move is "+validated_data["fen_after_move"])
-        return super().create(validated_data)
+        validated_data['move_number']=game.moves.count()+1
+
+        move=super().create(validated_data)
+        game.current_fen=move.fen_after_move
+        game.save()
+
+        return move

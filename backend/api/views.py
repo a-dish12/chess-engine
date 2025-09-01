@@ -27,21 +27,32 @@ class CreateMove(generics.CreateAPIView):
     serializer_class=MoveSerializer
     permission_classes=[IsAuthenticated]
 
+class GetLastFEN(APIView):
+    permission_classes=[IsAuthenticated]
+
+    def post(self,request):
+        game=Game.objects.get(id=request.data.get('gameId'))
+        fen=game.current_fen
+        return Response({"fen":fen},status=status.HTTP_200_OK)
+    
+
 class UndoMove(APIView):
     permission_classes=[IsAuthenticated]
 
     def post(self,request):
+        # retrieve game
         gameId=request.data.get('gameId')
         try:
             game=Game.objects.all().get(id=gameId)
         except Game.DoesNotExist:
-            return Response({"error: game not found"},status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "game not found"},status=status.HTTP_404_NOT_FOUND)
         
-        move=game.moves.order_by("move_number")
-        if not move.exists():
-            return Response({"error: no move left"},status=status.HTTP_400_BAD_REQUEST)
+        # retrieve moves in order
+        moves=game.moves.order_by("move_number")
+        if not moves.exists():
+            return Response({"error": "no move left"},status=status.HTTP_400_BAD_REQUEST)
         
-        moves = game.moves.order_by('move_number')
+        #delete last move
 
         last_move = moves.last()
         last_move.delete()
@@ -52,7 +63,8 @@ class UndoMove(APIView):
             new_fen = moves.last().fen_after_move
         else:
             new_fen = game.initial_fen
-        
+
+        # return fen
         return Response({"fen":new_fen},status=status.HTTP_200_OK)
 
 

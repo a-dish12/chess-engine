@@ -1,21 +1,43 @@
 import {Chessboard} from "react-chessboard"
 import {Chess} from "chess.js"
-import { useState } from "react"
+import { useState,useEffect } from "react"
 import api from "../api"
 import "../styles/Board.css"
 import { Navigate } from "react-router-dom"
 function ChessBoard({gameId,user}){
     const[position, setPosition] = useState(new Chess().fen());
-    const[userColor,setUserColor]=useState(user)
-    const[turn,setTurn]=useState("white")
+    const[turn,setTurn]=useState("w")
 
+    useEffect(() => {
+        if (turn !== user) {
+            console.log("ai's turn");
+            aiMove(position);
+        } else {
+            console.log("user's turn");
+        }
+    }, [turn]);
+
+    useEffect(()=>{
+        getLatestFen()
+    },[])
+
+    
     const changePlayerTurn=()=>{
-        setTurn(turn==="white"?"black":"white")
+        setTurn(turn==="w"?"b":"w")
     }
 
+    const getLatestFen =async()=>{
+            try{
+                const res= await api.post("/api/get-latest-fen/",{gameId:gameId})
+                if(res.status===200){
+                    setPosition(res.data.fen)
+                }
+            }catch(error){
+                alert(error)
+            }
+    }
 
     const aiMove = async(newFen)=>{
-        console.log("ai turn's now")
         console.log(`fen sent to ai is ${position}`)
         try{
             const res= await api.post("/api/ai-move/",{fen:newFen,gameId:gameId})
@@ -25,10 +47,11 @@ function ChessBoard({gameId,user}){
         } catch(error){
             console.log(error)
         }
+        changePlayerTurn()
         
     }
 
-    const droppedPiece=({sourceSquare,targetSquare,piece})=>{
+    const droppedPiece=({sourceSquare,targetSquare, piece})=>{
         const pieceType =  piece.pieceType
         const move={
             from:sourceSquare,
@@ -42,11 +65,9 @@ function ChessBoard({gameId,user}){
             const newFen=gameCopy.fen()
             setPosition(newFen);
             handleMove(sourceSquare,targetSquare,pieceType,result.after)
-            aiMove(newFen)
         }
     }
 
-   
 
     const handleMove= async(sourceSquare,targetSquare,pieceType,result)=>{
         try{
@@ -72,11 +93,12 @@ function ChessBoard({gameId,user}){
     }
 
     const moveOnlyYourPiece=({piece})=>{
-        return piece.pieceType[0]==userColor
+        return piece.pieceType[0]==user
+        
     }
 
     const isItYourTurn =()=>{
-        return turn[0]===userColor
+        return turn[0]===user
     }
    
 
@@ -106,7 +128,7 @@ function ChessBoard({gameId,user}){
             <div id="board-container">
                 <Chessboard
                 options={options}
-                />
+            />
                 <button 
                 className="h-10 px-5 m-2 text-indigo-100 transition-colors duration-150 bg-indigo-700 rounded-lg hover:bg-indigo-800 h-12 px-6 m-2 text-lg"
                 onClick={undoMove}>undo move</button>
